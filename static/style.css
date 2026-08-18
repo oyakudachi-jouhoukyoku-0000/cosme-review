@@ -1,0 +1,275 @@
+:root {
+  --bg: #fff2f6;
+  --card-bg: #ffffff;
+  --text: #4a3540;
+  --muted: #9c7c8c;
+  --accent: #ff6f9c;
+  --accent-dark: #e0507d;
+  --accent-soft: #ffe1ec;
+  --lavender: #b48ee0;
+  --border: #ffd6e5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.75;
+}
+
+header.site-header {
+  background: var(--card-bg);
+  border-bottom: 2px solid var(--border);
+  padding: 18px 20px;
+}
+
+header.site-header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+header.site-header h1::before {
+  content: "💄 ";
+}
+
+header.site-header h1 a {
+  color: var(--accent-dark);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+nav.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border-bottom: 2px solid var(--border);
+}
+
+nav.site-nav a {
+  color: var(--accent-dark);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  background: var(--accent-soft);
+}
+
+nav.site-nav a:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.disclosure-short {
+  max-width: 760px;
+  margin: 8px auto 0;
+  padding: 0 20px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.disclosure {
+  background: #fff8e6;
+  border: 1px solid #f0d999;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #7a5c1e;
+  margin: 0 0 10px;
+}
+
+h2.category-title {
+  border-left: 6px solid var(--accent);
+  padding-left: 12px;
+  margin-top: 32px;
+  color: var(--accent-dark);
+}
+
+.guide {
+  background: #f4ecff;
+  border: 1px solid #ddc9fb;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.guide strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--lavender);
+}
+
+.guide strong::before {
+  content: "✨ ";
+}
+
+.guide p {
+  margin: 0;
+  color: var(--text);
+}
+
+/* カラーチャート（色見本フィルター） */
+.color-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.color-filter .label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.swatch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid transparent;
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.swatch-btn .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: inline-block;
+}
+
+.swatch-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: bold;
+}
+
+.item-card {
+  display: flex;
+  gap: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 14px;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(255, 111, 156, 0.08);
+}
+
+.item-card.is-hidden {
+  display: none;
+}
+
+.item-card .rank {
+  font-weight: bold;
+  font-size: 1.3rem;
+  color: var(--accent);
+  min-width: 2.4rem;
+  text-align: center;
+}
+
+.item-card img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff8fa;
+}
+
+.item-card .info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-card .info a.item-name {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.item-card .info a.item-name:hover {
+  text-decoration: underline;
+  color: var(--accent-dark);
+}
+
+.item-card .price {
+  color: var(--accent-dark);
+  font-weight: bold;
+}
+
+.item-card .meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.badges {
+  margin-bottom: 4px;
+}
+
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 999px;
+  margin-right: 4px;
+}
+
+.category-list {
+  display: grid;
+  gap: 10px;
+}
+
+.category-list a {
+  display: block;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  color: var(--accent-dark);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.category-list a:hover {
+  background: var(--accent-soft);
+}
+
+footer.site-footer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+.updated-at {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
