@@ -14,9 +14,29 @@
 <nav class="site-nav">
   <a href="index.html">トップ</a>
   
-  <a href="lip.html">リップ</a>
+  <a href="skincare-lotion.html">化粧水・乳液</a>
+  
+  <a href="serum-cream.html">美容液・クリーム</a>
+  
+  <a href="cleansing.html">クレンジング・洗顔</a>
+  
+  <a href="sheet-mask.html">シートマスク・パック</a>
+  
+  <a href="uv-care.html">UVケア</a>
   
   <a href="base-makeup.html">ベースメイク</a>
+  
+  <a href="lip.html">リップ</a>
+  
+  <a href="eye-makeup.html">アイメイク</a>
+  
+  <a href="cheek-highlight.html">チーク・ハイライト</a>
+  
+  <a href="nail.html">ネイル</a>
+  
+  <a href="haircare.html">ヘアケア</a>
+  
+  <a href="bodycare.html">ボディケア</a>
   
   <a href="beauty-appliance.html">美容家電</a>
   
@@ -660,13 +680,10 @@
   var buttons = filterBar.querySelectorAll(".swatch-btn");
   var cards = document.querySelectorAll(".item-card");
 
-  filterBar.addEventListener("click", function (e) {
-    var btn = e.target.closest(".swatch-btn");
-    if (!btn) return;
-    buttons.forEach(function (b) { b.classList.remove("active"); });
-    btn.classList.add("active");
-
-    var color = btn.getAttribute("data-color-filter");
+  function applyFilter(color) {
+    buttons.forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-color-filter") === color);
+    });
     cards.forEach(function (card) {
       if (color === "all") {
         card.classList.remove("is-hidden");
@@ -675,7 +692,19 @@
       var colors = (card.getAttribute("data-colors") || "").split(",");
       card.classList.toggle("is-hidden", colors.indexOf(color) === -1);
     });
+  }
+
+  filterBar.addEventListener("click", function (e) {
+    var btn = e.target.closest(".swatch-btn");
+    if (!btn) return;
+    applyFilter(btn.getAttribute("data-color-filter"));
   });
+
+  // トップページの「色で探す」ブロックから ?color=xxx で来た場合、自動で絞り込む
+  var requested = new URLSearchParams(window.location.search).get("color");
+  if (requested && filterBar.querySelector('[data-color-filter="' + requested + '"]')) {
+    applyFilter(requested);
+  }
 })();
 </script>
 
