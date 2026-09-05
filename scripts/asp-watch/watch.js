@@ -2,7 +2,29 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const TARGET_URL = 'https://media-console.a8.net/program/search/newest';
+const LOGIN_URL = 'https://media-console.a8.net/program/search/top';
+
+// 「新着」に限らず、全カテゴリを巡回して確定率(承認率)の実績があるプログラムも対象にする
+const CATEGORIES = [
+  { code: '01', name: '総合通販' },
+  { code: '02', name: '健康' },
+  { code: '03', name: '美容' },
+  { code: '04', name: 'グルメ・食品' },
+  { code: '05', name: 'ファッション' },
+  { code: '06', name: '旅行' },
+  { code: '07', name: '金融・投資・保険' },
+  { code: '08', name: '不動産・引越' },
+  { code: '09', name: '仕事情報' },
+  { code: '10', name: '学び・資格' },
+  { code: '11', name: '暮らし' },
+  { code: '12', name: 'Webサービス' },
+  { code: '13', name: 'インターネット接続' },
+  { code: '14', name: 'エンタメ' },
+  { code: '15', name: 'ギフト' },
+  { code: '16', name: 'スポーツ・趣味' },
+  { code: '17', name: '結婚・恋愛' },
+];
+
 const A8_ID = process.env.A8_LOGIN_ID;
 const A8_PW = process.env.A8_LOGIN_PASSWORD;
 const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
@@ -89,7 +111,7 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     const passwordInput = await page.$('input[type="password"]');
     if (passwordInput) {
@@ -111,34 +133,39 @@ async function main() {
         submitButton.click(),
       ]);
       await page.waitForTimeout(2000);
-
-      // ログイン後、目的のページへ改めて移動
-      await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 30000 });
     } else {
       await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
     }
 
-    await page.screenshot({ path: path.join(DEBUG_DIR, 'page.png'), fullPage: true });
-    fs.writeFileSync(path.join(DEBUG_DIR, 'page.html'), await page.content());
+    // カテゴリを1つずつ巡回して、各カテゴリのプログラム一覧を集める
+    const rawItems = [];
+    for (const category of CATEGORIES) {
+      const categoryUrl = `https://media-console.a8.net/program/search/category?primaryCategoryCode=${category.code}`;
+      await page.goto(categoryUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
 
-    // 案件詳細っぽいリンクを起点に、周辺テキストから単価・承認率を拾う
-    const rawItems = await page.$$eval('a[href*="program"]', (links) => {
-      const seen = new Set();
-      const out = [];
-      for (const link of links) {
-        const href = link.href;
-        const name = (link.innerText || '').trim();
-        if (!href || !name || seen.has(href)) continue;
-        seen.add(href);
-        let container = link;
-        for (let i = 0; i < 5 && container.parentElement; i++) {
-          container = container.parentElement;
+      const items = await page.$$eval('a[href*="program"]', (links) => {
+        const seen = new Set();
+        const out = [];
+        for (const link of links) {
+          const href = link.href;
+          const name = (link.innerText || '').trim();
+          if (!href || !name || seen.has(href)) continue;
+          seen.add(href);
+          let container = link;
+          for (let i = 0; i < 5 && container.parentElement; i++) {
+            container = container.parentElement;
+          }
+          out.push({ name, url: href, text: container.innerText || '' });
         }
-        out.push({ name, url: href, text: container.innerText || '' });
+        return out;
+      });
+      for (const item of items) {
+        rawItems.push({ ...item, category: category.name });
       }
-      return out;
-    });
+      console.log(`[${category.name}] ${items.length} items scanned.`);
+    }
 
+    await page.screenshot({ path: path.join(DEBUG_DIR, 'page.png'), fullPage: true }).catch(() => {});
     fs.writeFileSync(
       path.join(DEBUG_DIR, 'raw-items.json'),
       JSON.stringify(rawItems, null, 2)
