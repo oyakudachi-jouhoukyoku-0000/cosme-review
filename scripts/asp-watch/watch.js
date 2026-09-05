@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const TARGET_URL = 'https://media-console.a8.net/program/search/top';
+const TARGET_URL = 'https://media-console.a8.net/program/search/newest';
 const A8_ID = process.env.A8_LOGIN_ID;
 const A8_PW = process.env.A8_LOGIN_PASSWORD;
 const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
