@@ -163,6 +163,10 @@ async function main() {
         rawItems.push({ ...item, category: category.name });
       }
       console.log(`[${category.name}] ${items.length} items scanned.`);
+
+      if (category.code === '02') {
+        fs.writeFileSync(path.join(DEBUG_DIR, 'sample-page.html'), await page.content());
+      }
     }
 
     await page.screenshot({ path: path.join(DEBUG_DIR, 'page.png'), fullPage: true }).catch(() => {});
