@@ -1,0 +1,13 @@
+{
+  "name": "asp-watch",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Daily watcher for A8.net new programs, filtered and saved to a Google Sheet",
+  "main": "watch.js",
+  "scripts": {
+    "start": "node watch.js"
+  },
+  "dependencies": {
+    "playwright": "1.48.2"
+  }
+}

@@ -1,0 +1,40 @@
+name: A8.net 新着案件チェック
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # 毎朝7:00 JST (UTC 22:00)
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts/asp-watch
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run watcher
+        env:
+          A8_LOGIN_ID: ${{ secrets.A8_LOGIN_ID }}
+          A8_LOGIN_PASSWORD: ${{ secrets.A8_LOGIN_PASSWORD }}
+          SHEET_WEBAPP_URL: ${{ secrets.SHEET_WEBAPP_URL }}
+        run: node watch.js
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asp-watch-debug
+          path: scripts/asp-watch/debug/
+          retention-days: 7
