@@ -48,6 +48,21 @@ function todayJST() {
     .replace(/\//g, '-');
 }
 
+function buildNoteDraft(item) {
+  const title = `${item.name}が気になっている方へ`;
+  const body = [
+    '本記事は広告（PRリンク）を含みます。',
+    '',
+    `今回ご紹介するのは「${item.name}」です。`,
+    '',
+    '気になる方は、下記の詳細ページで内容をチェックしてみてください。',
+    item.url,
+    '',
+    '※効果・効能には個人差があります。詳しい商品説明・注意事項は公式ページでご確認ください。',
+  ].join('\n');
+  return { title, body };
+}
+
 async function postToSheet(row) {
   if (!SHEET_WEBAPP_URL) {
     console.log('SHEET_WEBAPP_URL not set, skipping write:', row);
@@ -130,7 +145,7 @@ async function main() {
     );
 
     const date = todayJST();
-    let matched = 0;
+    const matchedItems = [];
 
     for (const item of rawItems) {
       const reward = parseYen(item.text);
@@ -149,11 +164,27 @@ async function main() {
         seasonal,
         url: item.url,
       });
-      matched++;
+      matchedItems.push({ ...item, reward, approval, seasonal });
       console.log(`Saved: ${item.name} (reward=${reward}, approval=${approval}%, seasonal=${seasonal})`);
     }
 
-    console.log(`Done. ${rawItems.length} items scanned, ${matched} matched and saved.`);
+    console.log(`Done. ${rawItems.length} items scanned, ${matchedItems.length} matched and saved.`);
+
+    if (matchedItems.length > 0) {
+      // その日の候補の中から単価が一番高いものを、note記事の下書き1本分として採用
+      const best = matchedItems.reduce((a, b) => (b.reward > a.reward ? b : a));
+      const draft = buildNoteDraft(best);
+      await postToSheet({
+        type: 'note_draft',
+        date,
+        title: draft.title,
+        body: draft.body,
+        url: best.url,
+      });
+      console.log(`Note draft created for: ${best.name}`);
+    } else {
+      console.log('No matched items today, no note draft created.');
+    }
   } catch (err) {
     console.error('Error:', err.message);
     await page.screenshot({ path: path.join(DEBUG_DIR, 'error.png'), fullPage: true }).catch(() => {});
