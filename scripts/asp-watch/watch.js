@@ -85,6 +85,26 @@ function buildNoteDraft(item) {
   return { title, body };
 }
 
+async function applyToProgram(page, item) {
+  await page.goto(item.url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+  const form = await page.$('form[action="/program/agreement/apply"]');
+  if (!form) {
+    console.log(`Apply form not found for: ${item.name} (may already be applied/partnered)`);
+    return false;
+  }
+  const button = await form.$('button[type="submit"]');
+  if (!button) {
+    console.log(`Apply button not found for: ${item.name}`);
+    return false;
+  }
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+    button.click(),
+  ]);
+  console.log(`Applied to program: ${item.name}`);
+  return true;
+}
+
 async function postToSheet(row) {
   if (!SHEET_WEBAPP_URL) {
     console.log('SHEET_WEBAPP_URL not set, skipping write:', row);
@@ -195,12 +215,12 @@ async function main() {
 
     console.log(`Done. ${rawItems.length} items scanned, ${matchedItems.length} matched and saved.`);
 
-    // 調査用: 提携申請フォームの構造を確認するため、未提携の案件詳細ページのHTMLを保存する
-    const unpartnered = matchedItems.find((it) => it.text.includes('未提携'));
-    if (unpartnered) {
-      await page.goto(unpartnered.url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
-      fs.writeFileSync(path.join(DEBUG_DIR, 'apply-page.html'), await page.content());
-      console.log(`Saved apply-page.html for: ${unpartnered.name}`);
+    // 条件に合う未提携案件には、その場で提携申請を送る
+    // (すでに申請済み/提携中のものはステータス表示が変わるため「未提携」に該当しなくなり、再申請は起きない想定)
+    for (const item of matchedItems) {
+      if (item.text.includes('未提携')) {
+        await applyToProgram(page, item);
+      }
     }
 
     if (matchedItems.length > 0) {
