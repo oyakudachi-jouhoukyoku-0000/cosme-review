@@ -195,6 +195,14 @@ async function main() {
 
     console.log(`Done. ${rawItems.length} items scanned, ${matchedItems.length} matched and saved.`);
 
+    // 調査用: 提携申請フォームの構造を確認するため、未提携の案件詳細ページのHTMLを保存する
+    const unpartnered = matchedItems.find((it) => it.text.includes('未提携'));
+    if (unpartnered) {
+      await page.goto(unpartnered.url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
+      fs.writeFileSync(path.join(DEBUG_DIR, 'apply-page.html'), await page.content());
+      console.log(`Saved apply-page.html for: ${unpartnered.name}`);
+    }
+
     if (matchedItems.length > 0) {
       // その日の候補の中から単価が一番高いものを、note記事の下書き1本分として採用
       const best = matchedItems.reduce((a, b) => (b.reward > a.reward ? b : a));
