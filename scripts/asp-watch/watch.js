@@ -28,6 +28,8 @@ const CATEGORIES = [
 const A8_ID = process.env.A8_LOGIN_ID;
 const A8_PW = process.env.A8_LOGIN_PASSWORD;
 const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const CLAUDE_MODEL = 'claude-sonnet-5';
 
 const MIN_APPROVAL_RATE = 70; // %
 const MIN_REWARD = 20000; // yen
@@ -175,7 +177,8 @@ const GENERIC_FAQ = [
   },
 ];
 
-function buildNoteDraft(item) {
+// ANTHROPIC_API_KEYが無い場合や、AI生成が失敗した場合のフォールバック用テンプレート
+function buildFallbackDraft(item) {
   const hook = CATEGORY_HOOKS[item.category] || {
     pain: '「もっと良い方法があるかもしれない」と感じることはありませんか。今のやり方に大きな不満はなくても、比較してみることで新しい発見があるかもしれません。',
     points: ['新しい選択肢を探している方'],
@@ -228,6 +231,129 @@ function buildNoteDraft(item) {
     '※効果・効能には個人差があります。詳しい商品説明・注意事項は公式ページでご確認ください。',
   ].join('\n');
   return { title, body };
+}
+
+async function callClaude(systemPrompt, userPrompt, maxTokens) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Claude API error: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  return data.content.map((c) => c.text || '').join('');
+}
+
+function extractJson(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error(`No JSON found in Claude response: ${text.slice(0, 300)}`);
+  return JSON.parse(match[0]);
+}
+
+const WRITER_SYSTEM_PROMPT = `あなたは「コスメ・美容レビューランキング」運営チームのライター担当AI社員です。
+アフィリエイト案件を紹介するnote記事を、以下のルールに従って執筆してください。
+
+【文体ルール】
+- 敬体(です・ます調)で統一する
+- 一文は60〜80字程度を目安に短くまとめる
+- 断定を避けたレビュー調にする(「〜という声もあります」等)
+- 「絶対」「必ず」「100%」等の断定的な強調語は使わない
+- 絵文字は使わない
+
+【薬機法・景品表示法の遵守(必須)】
+- 医薬品的な効能効果(治る・消える・完治等)を標榜しない
+- 化粧品・健康食品の効能効果として認められる範囲を超えた表現をしない
+- 「業界No.1」等の最上級表現は、根拠が無いなら使わない
+- 体験談・口コミを創作しない。個人の感想である旨や効果に個人差がある旨を明記する
+- 本文の一番最初の行に必ず「本記事は広告（PRリンク）を含みます。」と書く
+
+【最重要】
+与えられた「わかっている事実」だけを根拠に書いてください。書かれていない具体的な数値・効果・体験談を勝手に作り出さないでください。わからないことは「公式ページでご確認ください」のように誘導してください。
+
+本文は、共感・提案・具体的に検討すべきポイント・行動喚起を含む、読み応えのある構成にしてください。文字数の目安は1800〜2500字程度ですが、内容の水増しは避け、自然に書ける範囲で構いません。
+
+出力は次のJSON形式のみを返してください。前後に説明文や\`\`\`は付けないこと。
+{"title": "記事タイトル", "body": "記事本文"}`;
+
+const EDITOR_SYSTEM_PROMPT = `あなたは「コスメ・美容レビューランキング」運営チームのエディター担当AI社員です。
+ライター担当が書いた以下の記事を、次のチェックリストに従って校正してください。
+
+【薬機法関連】
+1. 「治る」「消える」「完治」「若返る」等の医薬品的な効能効果を標榜していないか
+2. 化粧品・健康食品として認められる範囲を超えた表現をしていないか
+3. 化粧品では標榜できない効果を暗示していないか
+4. 「殺菌」「消毒」「治療」等の効果を誤って記載していないか
+5. アンチエイジング等の表現が医学的効果を暗示していないか
+
+【景品表示法関連】
+6. 最上級表現に客観的根拠があるか、無ければ使っていないか
+7. 体験談を掲載する場合「個人の感想」「効果には個人差」の明記があるか
+8. 実際より著しく優良・お得であるかのような表示になっていないか
+9. 不当な煽り表現になっていないか
+
+【表示・アフィリエイト関連】
+10. 本文冒頭に「本記事は広告（PRリンク）を含みます。」があるか
+11. リンク誘導先と記事内容に齟齬がないか
+12. 断定的すぎる強調語(絶対・必ず・100%等)が無いか
+
+問題があれば自然な範囲で本文を修正してください。大きな問題が無ければ、文章の流れや読みやすさを整える程度の軽微な修正に留めてください。
+
+出力は次のJSON形式のみを返してください。前後に説明文や\`\`\`は付けないこと。
+{"title": "最終タイトル", "body": "最終本文", "verdict": "公開可 または 差し戻し", "notes": "修正点や気になる点の簡単なメモ"}`;
+
+function buildResearchBrief(item) {
+  return [
+    `案件名: ${item.name}`,
+    `カテゴリ: ${item.category}`,
+    `成果報酬(アフィリエイト単価。読者には見せない内部情報): ${item.reward}円`,
+    `確定率(承認率): ${item.approval}%`,
+    `季節性判定: ${item.seasonal === '○' ? 'あり' : 'なし'}`,
+    '',
+    'A8.netの案件ページに記載されている、わかっている事実(生データ):',
+    item.text,
+  ].join('\n');
+}
+
+async function buildAiDraft(item) {
+  if (!ANTHROPIC_API_KEY) {
+    console.log(`ANTHROPIC_API_KEY not set, using fallback template for: ${item.name}`);
+    return buildFallbackDraft(item);
+  }
+
+  try {
+    const brief = buildResearchBrief(item);
+
+    const writerRaw = await callClaude(
+      WRITER_SYSTEM_PROMPT,
+      `以下の「わかっている事実」をもとに、note記事を執筆してください。\n\n${brief}`,
+      3000
+    );
+    const draft = extractJson(writerRaw);
+
+    const editorRaw = await callClaude(
+      EDITOR_SYSTEM_PROMPT,
+      `【タイトル】\n${draft.title}\n\n【本文】\n${draft.body}`,
+      3000
+    );
+    const edited = extractJson(editorRaw);
+
+    console.log(`Editor verdict for "${item.name}": ${edited.verdict} (${edited.notes || ''})`);
+    return { title: edited.title, body: edited.body };
+  } catch (err) {
+    console.error(`AI draft generation failed for ${item.name}, using fallback: ${err.message}`);
+    return buildFallbackDraft(item);
+  }
 }
 
 async function applyToProgram(page, item) {
@@ -362,16 +488,27 @@ async function main() {
 
     // 条件に合う未提携案件には、その場で提携申請を送る
     // (すでに申請済み/提携中のものはステータス表示が変わるため「未提携」に該当しなくなり、再申請は起きない想定)
+    let appliedCount = 0;
     for (const item of matchedItems) {
       if (item.text.includes('未提携')) {
-        await applyToProgram(page, item);
+        const applied = await applyToProgram(page, item);
+        if (applied) appliedCount++;
       }
     }
+
+    // データ分析用に、その日の巡回結果のサマリを記録する
+    await postToSheet({
+      type: 'analysis',
+      date,
+      scanned: rawItems.length,
+      matched: matchedItems.length,
+      applied: appliedCount,
+    });
 
     if (matchedItems.length > 0) {
       // 条件に合った案件はすべて記事下書きにする
       for (const item of matchedItems) {
-        const draft = buildNoteDraft(item);
+        const draft = await buildAiDraft(item);
         await postToSheet({
           type: 'note_draft',
           date,

@@ -29,6 +29,7 @@ jobs:
           A8_LOGIN_ID: ${{ secrets.A8_LOGIN_ID }}
           A8_LOGIN_PASSWORD: ${{ secrets.A8_LOGIN_PASSWORD }}
           SHEET_WEBAPP_URL: ${{ secrets.SHEET_WEBAPP_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node watch.js
 
       - name: Upload debug artifacts
