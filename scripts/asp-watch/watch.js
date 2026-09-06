@@ -143,19 +143,17 @@ async function main() {
       const categoryUrl = `https://media-console.a8.net/program/search/category?primaryCategoryCode=${category.code}`;
       await page.goto(categoryUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
 
-      const items = await page.$$eval('a[href*="program"]', (links) => {
-        const seen = new Set();
+      const items = await page.$$eval('div.pgCard', (cards) => {
         const out = [];
-        for (const link of links) {
-          const href = link.href;
-          const name = (link.innerText || '').trim();
-          if (!href || !name || seen.has(href)) continue;
-          seen.add(href);
-          let container = link;
-          for (let i = 0; i < 5 && container.parentElement; i++) {
-            container = container.parentElement;
-          }
-          out.push({ name, url: href, text: container.innerText || '' });
+        for (const card of cards) {
+          const nameEl = card.querySelector('h3.pgName');
+          const linkEl = card.querySelector('a[href*="programId="]');
+          if (!nameEl || !linkEl) continue;
+          out.push({
+            name: nameEl.innerText.trim(),
+            url: linkEl.href,
+            text: card.innerText || '',
+          });
         }
         return out;
       });
@@ -163,10 +161,6 @@ async function main() {
         rawItems.push({ ...item, category: category.name });
       }
       console.log(`[${category.name}] ${items.length} items scanned.`);
-
-      if (category.code === '02') {
-        fs.writeFileSync(path.join(DEBUG_DIR, 'sample-page.html'), await page.content());
-      }
     }
 
     await page.screenshot({ path: path.join(DEBUG_DIR, 'page.png'), fullPage: true }).catch(() => {});
