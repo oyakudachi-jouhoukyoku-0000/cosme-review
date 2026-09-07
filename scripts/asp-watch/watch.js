@@ -70,26 +70,6 @@ function todayJST() {
     .replace(/\//g, '-');
 }
 
-async function applyToProgram(page, item) {
-  await page.goto(item.url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {});
-  const form = await page.$('form[action="/program/agreement/apply"]');
-  if (!form) {
-    console.log(`Apply form not found for: ${item.name} (may already be applied/partnered)`);
-    return false;
-  }
-  const button = await form.$('button[type="submit"]');
-  if (!button) {
-    console.log(`Apply button not found for: ${item.name}`);
-    return false;
-  }
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
-    button.click(),
-  ]);
-  console.log(`Applied to program: ${item.name}`);
-  return true;
-}
-
 async function postToSheet(row) {
   if (!SHEET_WEBAPP_URL) {
     console.log('SHEET_WEBAPP_URL not set, skipping write:', row);
@@ -200,23 +180,15 @@ async function main() {
 
     console.log(`Done. ${rawItems.length} items scanned, ${matchedItems.length} matched and saved.`);
 
-    // 条件に合う未提携案件には、その場で提携申請を送る
-    // (すでに申請済み/提携中のものはステータス表示が変わるため「未提携」に該当しなくなり、再申請は起きない想定)
-    let appliedCount = 0;
-    for (const item of matchedItems) {
-      if (item.text.includes('未提携')) {
-        const applied = await applyToProgram(page, item);
-        if (applied) appliedCount++;
-      }
-    }
-
+    // 提携申請の自動送信は無効化(却下が続いたため)。まず記事を公開して実績を作ってから、
+    // 手動または別途の仕組みで申請する方針に変更。
     // データ分析用に、その日の巡回結果のサマリを記録する
     await postToSheet({
       type: 'analysis',
       date,
       scanned: rawItems.length,
       matched: matchedItems.length,
-      applied: appliedCount,
+      applied: 0,
     });
 
     console.log(
