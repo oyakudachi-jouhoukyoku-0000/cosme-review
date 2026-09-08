@@ -29,8 +29,11 @@ const A8_ID = process.env.A8_LOGIN_ID;
 const A8_PW = process.env.A8_LOGIN_PASSWORD;
 const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
 
-const MIN_APPROVAL_RATE = 70; // %
-const MIN_REWARD = 20000; // yen
+// 極端に悪い案件を除外するための最低ライン(足切り)。この2つを両方満たす案件の中から
+// 「単価×承認率」のスコアが高い順に、その日の上位候補を選ぶ方式にする。
+const MIN_APPROVAL_RATE_FLOOR = 50; // %
+const MIN_REWARD_FLOOR = 5000; // yen
+const DAILY_PICK_COUNT = 3;
 
 // 季節性ありと判定するキーワード（広め判定）
 const SEASONAL_KEYWORDS = [
@@ -155,30 +158,36 @@ async function main() {
     );
 
     const date = todayJST();
-    const matchedItems = [];
+    const candidates = [];
 
     for (const item of rawItems) {
       const reward = parseYen(item.text);
       const approval = parsePercent(item.text);
       if (reward === null || approval === null) continue;
-      if (reward < MIN_REWARD || approval < MIN_APPROVAL_RATE) continue;
+      if (reward < MIN_REWARD_FLOOR || approval < MIN_APPROVAL_RATE_FLOOR) continue;
 
       const seasonal = isSeasonal(item.name + ' ' + item.text) ? '○' : '×';
+      const score = reward * (approval / 100);
+      candidates.push({ ...item, reward, approval, seasonal, score });
+    }
 
+    candidates.sort((a, b) => b.score - a.score);
+    const matchedItems = candidates.slice(0, DAILY_PICK_COUNT);
+
+    for (const item of matchedItems) {
       await postToSheet({
         date,
         asp: 'A8.net',
         name: item.name,
-        reward,
-        approval: `${approval}%`,
-        seasonal,
+        reward: item.reward,
+        approval: `${item.approval}%`,
+        seasonal: item.seasonal,
         url: item.url,
       });
-      matchedItems.push({ ...item, reward, approval, seasonal });
-      console.log(`Saved: ${item.name} (reward=${reward}, approval=${approval}%, seasonal=${seasonal})`);
+      console.log(`Saved: ${item.name} (reward=${item.reward}, approval=${item.approval}%, score=${Math.round(item.score)}, seasonal=${item.seasonal})`);
     }
 
-    console.log(`Done. ${rawItems.length} items scanned, ${matchedItems.length} matched and saved.`);
+    console.log(`Done. ${rawItems.length} items scanned, ${candidates.length} candidates above floor, ${matchedItems.length} picked.`);
 
     // 提携申請の自動送信は無効化(却下が続いたため)。まず記事を公開して実績を作ってから、
     // 手動または別途の仕組みで申請する方針に変更。
