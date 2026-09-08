@@ -12,7 +12,7 @@ const CATEGORIES = [
   { code: '04', name: 'グルメ・食品' },
   { code: '05', name: 'ファッション' },
   { code: '06', name: '旅行' },
-  { code: '07', name: '金融・投資・保険' },
+  // 金融・投資・保険(07)は規制が厳しくブランドとも合わないため対象外
   { code: '08', name: '不動産・引越' },
   { code: '09', name: '仕事情報' },
   { code: '10', name: '学び・資格' },
@@ -34,6 +34,17 @@ const SHEET_WEBAPP_URL = process.env.SHEET_WEBAPP_URL;
 const MIN_APPROVAL_RATE_FLOOR = 50; // %
 const MIN_REWARD_FLOOR = 5000; // yen
 const DAILY_PICK_COUNT = 3;
+
+// うさんくさく見えやすい案件を、スコアに関係なく除外するためのキーワード
+const SUSPICIOUS_KEYWORDS = [
+  '占い', '副業', '簡単に稼げる', '稼げる', '儲かる', '仮想通貨', '暗号資産',
+  'FX', 'CFD', '在宅ワーク', 'マルチ商法', 'ねずみ講', '出会い系', '返金保証',
+  '通常価格', '特別オファー', '今だけ',
+];
+
+function isSuspicious(text) {
+  return SUSPICIOUS_KEYWORDS.some((kw) => text.includes(kw));
+}
 
 // 季節性ありと判定するキーワード（広め判定）
 const SEASONAL_KEYWORDS = [
@@ -165,6 +176,7 @@ async function main() {
       const approval = parsePercent(item.text);
       if (reward === null || approval === null) continue;
       if (reward < MIN_REWARD_FLOOR || approval < MIN_APPROVAL_RATE_FLOOR) continue;
+      if (isSuspicious(item.name + ' ' + item.text)) continue;
 
       const seasonal = isSeasonal(item.name + ' ' + item.text) ? '○' : '×';
       const score = reward * (approval / 100);
