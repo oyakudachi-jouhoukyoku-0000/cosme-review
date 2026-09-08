@@ -2,7 +2,7 @@ name: A8.net 新着案件チェック
 
 on:
   schedule:
-    - cron: '0 22 * * *' # 毎朝7:00 JST (UTC 22:00)
+    - cron: '0 11 * * *' # 毎晩20:00 JST (UTC 11:00)
   workflow_dispatch: {}
 
 jobs:
